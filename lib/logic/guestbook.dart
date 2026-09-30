@@ -17,7 +17,21 @@ class GuestEntry {
   final String name;
   final String message;
   final DateTime signedAt;
+
+  Map<String, Object?> toJson() => {
+        'name': name,
+        'message': message,
+        'signedAt': signedAt.toIso8601String(),
+      };
+
+  static GuestEntry fromJson(Map<String, Object?> json) => GuestEntry(
+        name: json['name'] as String,
+        message: json['message'] as String,
+        signedAt: DateTime.parse(json['signedAt'] as String),
+      );
 }
+
+Map<String, Object?> guestEntryToJson(GuestEntry entry) => entry.toJson();
 
 String? validateName(String? value) {
   final v = (value ?? '').trim();

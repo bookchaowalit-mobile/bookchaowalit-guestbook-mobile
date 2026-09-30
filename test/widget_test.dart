@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:guestbook/main.dart';
 import 'package:guestbook/screens/home_screen.dart';
 
 void main() {
+  setUp(() => SharedPreferences.setMockInitialValues({}));
+
   testWidgets('app shell shows guestbook and about tab', (tester) async {
     await tester.pumpWidget(const GuestbookApp());
+    await tester.pumpAndSettle();
     expect(find.text('Guestbook'), findsWidgets);
     await tester.tap(find.text('About'));
     await tester.pumpAndSettle();

@@ -1,9 +1,15 @@
 import 'package:flutter/material.dart';
 
+import '../data/guest_entry_repository.dart';
+import '../data/list_repository.dart';
 import '../logic/guestbook.dart';
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key, this.clock = DateTime.now});
+  const HomeScreen({super.key, this.clock = DateTime.now, this.repository});
+
+  /// Where entries are stored. Defaults to an in-memory store (tests); the
+  /// app passes [deviceGuestEntryRepository].
+  final GuestEntryRepository? repository;
 
   final DateTime Function() clock;
 
@@ -16,6 +22,48 @@ class _HomeScreenState extends State<HomeScreen> {
   final _name = TextEditingController();
   final _message = TextEditingController();
   final List<GuestEntry> _entries = [];
+
+  late final GuestEntryRepository _repository =
+      widget.repository ?? InMemoryListRepository<GuestEntry>();
+  bool _loading = true;
+  String? _storageError;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    try {
+      final saved = await _repository.load();
+      if (!mounted) return;
+      setState(() {
+        _entries
+          ..clear()
+          ..addAll(saved);
+        _loading = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        _storageError = 'Saved entries could not be read.';
+      });
+    }
+  }
+
+  Future<void> _persist() async {
+    try {
+      await _repository.save(List.of(_entries));
+      if (mounted && _storageError != null) {
+        setState(() => _storageError = null);
+      }
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _storageError = 'Could not save entries on this device.');
+    }
+  }
 
   @override
   void dispose() {
@@ -36,6 +84,12 @@ class _HomeScreenState extends State<HomeScreen> {
       );
       _message.clear();
     });
+    _persist();
+  }
+
+  void _delete(GuestEntry entry) {
+    setState(() => _entries.remove(entry));
+    _persist();
   }
 
   @override
@@ -47,6 +101,16 @@ class _HomeScreenState extends State<HomeScreen> {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
+          if (_loading) const LinearProgressIndicator(),
+          if (_storageError != null)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Text(
+                _storageError!,
+                key: const Key('storage-error'),
+                style: TextStyle(color: Theme.of(context).colorScheme.error),
+              ),
+            ),
           Form(
             key: _formKey,
             child: Column(
@@ -87,7 +151,8 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           const SizedBox(height: 8),
           const Text(
-            'Entries are stored only on this device for this session.',
+            'Entries are saved only on this device; this is not a shared '
+            'online guestbook.',
             style: TextStyle(fontStyle: FontStyle.italic),
           ),
           const SizedBox(height: 16),
@@ -98,7 +163,17 @@ class _HomeScreenState extends State<HomeScreen> {
                 leading: CircleAvatar(child: Text(initialsOf(e.name))),
                 title: Text(e.name),
                 subtitle: Text(e.message),
-                trailing: Text(relativeTime(e.signedAt, now)),
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(relativeTime(e.signedAt, now)),
+                    IconButton(
+                      tooltip: 'Delete entry',
+                      icon: const Icon(Icons.delete_outline),
+                      onPressed: () => _delete(e),
+                    ),
+                  ],
+                ),
               ),
             ),
         ],

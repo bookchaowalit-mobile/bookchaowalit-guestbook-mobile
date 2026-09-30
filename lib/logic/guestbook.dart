@@ -1,6 +1,8 @@
 /// Guestbook entries, validation and relative-time labels.
 library;
 
+import 'package:characters/characters.dart';
+
 class GuestLimits {
   static const nameMax = 40;
   static const messageMax = 280;
@@ -36,7 +38,8 @@ Map<String, Object?> guestEntryToJson(GuestEntry entry) => entry.toJson();
 String? validateName(String? value) {
   final v = (value ?? '').trim();
   if (v.isEmpty) return 'Please enter your name';
-  if (v.length > GuestLimits.nameMax) {
+  // Grapheme clusters, matching the TextField counter (maxLength).
+  if (v.characters.length > GuestLimits.nameMax) {
     return 'Name must be at most ${GuestLimits.nameMax} characters';
   }
   return null;
@@ -45,7 +48,7 @@ String? validateName(String? value) {
 String? validateMessage(String? value) {
   final v = (value ?? '').trim();
   if (v.isEmpty) return 'Please write a message';
-  if (v.length > GuestLimits.messageMax) {
+  if (v.characters.length > GuestLimits.messageMax) {
     return 'Message must be at most ${GuestLimits.messageMax} characters';
   }
   return null;
@@ -68,7 +71,12 @@ String relativeTime(DateTime then, DateTime now) {
   if (d.isNegative || d.inSeconds < 60) return 'just now';
   if (d.inMinutes < 60) return '${d.inMinutes} min ago';
   if (d.inHours < 24) return '${d.inHours} h ago';
-  if (d.inDays < 7) return d.inDays == 1 ? 'yesterday' : '${d.inDays} days ago';
+  // Past 24 hours, count calendar days: 33 hours ago at 08:00 is the day
+  // before yesterday, not "yesterday".
+  final days = DateTime.utc(now.year, now.month, now.day)
+      .difference(DateTime.utc(then.year, then.month, then.day))
+      .inDays;
+  if (days < 7) return days <= 1 ? 'yesterday' : '$days days ago';
   String two(int v) => v.toString().padLeft(2, '0');
   return '${then.year}-${two(then.month)}-${two(then.day)}';
 }
@@ -76,12 +84,9 @@ String relativeTime(DateTime then, DateTime now) {
 /// Initials for an avatar: first letters of up to two words.
 String initialsOf(String name) {
   final parts = name.trim().split(RegExp(r'\s+')).where((p) => p.isNotEmpty);
+  // Whole grapheme clusters, so flags, family emoji and decomposed accents
+  // are not cut in half.
   final letters = parts.take(2).map((p) => p.characters.first.toUpperCase());
   final s = letters.join();
   return s.isEmpty ? '?' : s;
-}
-
-extension on String {
-  // Code-point iteration so emoji outside the BMP are not split in half.
-  Iterable<String> get characters => runes.map(String.fromCharCode);
 }

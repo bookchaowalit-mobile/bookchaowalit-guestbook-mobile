@@ -90,6 +90,21 @@ class _HomeScreenState extends State<HomeScreen> {
   void _delete(GuestEntry entry) {
     setState(() => _entries.remove(entry));
     _persist();
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.hideCurrentSnackBar();
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text('Deleted entry by ${entry.name}'),
+        action: SnackBarAction(
+          label: 'Undo',
+          onPressed: () {
+            if (!mounted || _entries.contains(entry)) return;
+            setState(() => _entries.add(entry));
+            _persist();
+          },
+        ),
+      ),
+    );
   }
 
   @override
@@ -160,7 +175,9 @@ class _HomeScreenState extends State<HomeScreen> {
           for (final e in entries)
             Card(
               child: ListTile(
-                leading: CircleAvatar(child: Text(initialsOf(e.name))),
+                leading: ExcludeSemantics(
+                  child: CircleAvatar(child: Text(initialsOf(e.name))),
+                ),
                 title: Text(e.name),
                 subtitle: Text(e.message),
                 trailing: Row(
@@ -168,7 +185,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   children: [
                     Text(relativeTime(e.signedAt, now)),
                     IconButton(
-                      tooltip: 'Delete entry',
+                      tooltip: 'Delete entry by ${e.name}',
                       icon: const Icon(Icons.delete_outline),
                       onPressed: () => _delete(e),
                     ),

@@ -49,7 +49,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Ann Lee'), findsWidgets);
 
-    await tester.tap(find.byTooltip('Delete entry'));
+    await tester.tap(find.byTooltip('Delete entry by Ann Lee'));
     await tester.pumpAndSettle();
     expect(await repo.load(), isEmpty);
   });
